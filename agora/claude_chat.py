@@ -154,7 +154,7 @@ class AnthropicChat:
         except TypeError:  # SDK nie znalazł żadnego klucza
             raise SystemExit("Claude API: brak klucza. Wpisz ANTHROPIC_API_KEY=... w pliku .env (klucz z https://console.anthropic.com/settings/keys).")
         except anthropic.AuthenticationError:
-            raise SystemExit("Claude API: zły lub brakujący klucz. Wpisz ANTHROPIC_API_KEY=... w pliku .env (klucz z https://console.anthropic.com/settings/keys).")
+            raise SystemExit("Anthropic odrzucił ANTHROPIC_API_KEY z .env (klucz unieważniony lub wygasły). Nowy klucz: https://console.anthropic.com/settings/keys")
         except anthropic.NotFoundError:
             raise SystemExit(f"Claude API: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except anthropic.APIConnectionError as e:

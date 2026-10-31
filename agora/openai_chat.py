@@ -119,7 +119,7 @@ class OpenAIChat:
         try:
             await self._client.models.retrieve(self.model)
         except openai.AuthenticationError:
-            raise SystemExit("OpenAI: zły klucz OPENAI_API_KEY w .env.")
+            raise SystemExit("OpenAI odrzucił OPENAI_API_KEY z .env (klucz unieważniony lub wygasły). Nowy klucz: https://platform.openai.com/api-keys")
         except openai.NotFoundError:
             raise SystemExit(f"OpenAI: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except openai.APIConnectionError as e:
