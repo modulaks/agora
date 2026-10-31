@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Protocol
@@ -72,6 +73,15 @@ def mask_key(key: str | None) -> str:
     if not key:
         return "(brak)"
     return f"{key[:10]}…{key[-4:]}" if len(key) > 16 else "(za krótki)"
+
+
+def broken_key_message(name: str) -> str | None:
+    """Klucz skopiowany z czatu, który ukrywa go pod kropkami, ląduje w .env jako "?" lub "•"."""
+    key = os.environ.get(name) or ""
+    if key and not all(c.isascii() and (c.isalnum() or c in "-_") for c in key):
+        return (f"{name} w .env jest uszkodzony ({mask_key(key)}): zawiera znaki ? lub •. "
+                "Wklej klucz z oryginalnego źródła (strona dostawcy), nie z okna czatu, które ukrywa klucze pod kropkami.")
+    return None
 
 
 def add_usage(total: dict[str, int], **counts: int | None) -> None:

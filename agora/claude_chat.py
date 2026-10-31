@@ -11,7 +11,7 @@ from typing import Any
 
 import anthropic
 
-from .llm import ChatResult, EventSink, _emit, add_usage, mask_key, with_heartbeat
+from .llm import ChatResult, EventSink, _emit, add_usage, broken_key_message, mask_key, with_heartbeat
 from .tools import Toolbox
 
 MAX_TOKENS = 16000
@@ -150,6 +150,8 @@ class AnthropicChat:
 
     async def check(self) -> None:
         """Sprawdza klucz i model przed startem społeczności (bez kosztu tokenów)."""
+        if (msg := broken_key_message("ANTHROPIC_API_KEY")):
+            raise SystemExit(msg)
         try:
             await self._client.models.retrieve(self.model)
         except TypeError:  # SDK nie znalazł żadnego klucza

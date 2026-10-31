@@ -12,7 +12,7 @@ from typing import Any
 
 import openai
 
-from .llm import ChatResult, EventSink, _emit, add_usage, mask_key, with_heartbeat
+from .llm import ChatResult, EventSink, _emit, add_usage, broken_key_message, mask_key, with_heartbeat
 from .tools import Toolbox
 
 
@@ -116,6 +116,8 @@ class OpenAIChat:
 
     async def check(self) -> None:
         """Sprawdza klucz i model przed startem (bez kosztu tokenów)."""
+        if (msg := broken_key_message("OPENAI_API_KEY")):
+            raise SystemExit(msg)
         try:
             await self._client.models.retrieve(self.model)
         except openai.AuthenticationError:

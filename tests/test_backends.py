@@ -94,3 +94,11 @@ async def test_openai_tool_loop():
     assert "temperature" not in stub.calls[0] and stub.calls[0]["tool_choice"] == "auto"
     assert stub.calls[0]["tools"][0]["type"] == "function"
     assert events.count("tool_call") == 2
+
+
+def test_key_copied_from_chat_is_reported(monkeypatch):
+    from agora.llm import broken_key_message
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-????????????????")
+    assert "uszkodzony" in broken_key_message("OPENAI_API_KEY")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-9DFrlFStb12g83Lf5ao7vfiOlzqw-PyESYa3mJ_EZk58")
+    assert broken_key_message("OPENAI_API_KEY") is None
