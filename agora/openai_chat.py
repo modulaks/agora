@@ -1,6 +1,6 @@
 """Backend OpenAI: zwykłe chat completions z narzędziami. Ta sama pętla i te same zdarzenia co OllamaChat.
 
-Wybór: --model openai (albo AGORA_BACKEND=openai), klucz w OPENAI_API_KEY.
+Wybór: --model luna, klucz OPENAI_API_KEY w .env.
 OPENAI_BASE_URL pozwala wskazać dowolny serwer zgodny z API OpenAI.
 """
 
@@ -23,7 +23,7 @@ class OpenAIChat:
         self.model = model
         if client is None:
             if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("OPENAI_BASE_URL"):
-                raise SystemExit("OpenAI: brak klucza. Ustaw OPENAI_API_KEY w .env albo wskaż .env innego projektu (--env ŚCIEŻKA lub AGORA_ENV_FILE).")
+                raise SystemExit("OpenAI: brak klucza. Skopiuj .env z projektu, w którym jest OPENAI_API_KEY, do folderu agora.")
             # Serwer lokalny (OPENAI_BASE_URL) zwykle nie wymaga klucza, ale SDK chce niepustej wartości.
             client = openai.AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY") or "brak", timeout=timeout)
         self._client = client
@@ -61,7 +61,7 @@ class OpenAIChat:
             except openai.AuthenticationError:
                 result.error = "zły klucz OPENAI_API_KEY"
             except openai.NotFoundError:
-                result.error = f"model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu (OPENAI_MODEL)"
+                result.error = f"model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu"
             except openai.APIError as e:
                 result.error = f"{type(e).__name__}: {e}"
             if result.error:
@@ -119,8 +119,8 @@ class OpenAIChat:
         try:
             await self._client.models.retrieve(self.model)
         except openai.AuthenticationError:
-            raise SystemExit("OpenAI: zły klucz. Popraw OPENAI_API_KEY (w .env albo w .env innego projektu).")
+            raise SystemExit("OpenAI: zły klucz OPENAI_API_KEY w .env.")
         except openai.NotFoundError:
-            raise SystemExit(f"OpenAI: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu. Podaj inny: --model openai:NAZWA albo OPENAI_MODEL w .env.")
+            raise SystemExit(f"OpenAI: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except openai.APIConnectionError as e:
             raise SystemExit(f"OpenAI: brak połączenia ({type(e).__name__}). Sprawdź internet / OPENAI_BASE_URL.")

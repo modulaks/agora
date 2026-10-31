@@ -122,8 +122,6 @@ class Community:
     async def check_model(self) -> None:
         if self.settings.dry_run:
             return
-        if self.settings.env_file is not None:
-            self.observer.event("system", "system", {"text": f"Dodatkowy .env: {self.settings.env_file}"})
         if self.settings.backend in ("anthropic", "openai"):
             self.observer.event("system", "system", {"text": f"Sprawdzam klucz i model: {self.settings.model_label} ..."})
             check = getattr(self.chat, "check", None)
@@ -146,7 +144,7 @@ class Community:
             )
         names = [m.model for m in (listing.models or [])]
         if self.settings.ollama_model not in names and f"{self.settings.ollama_model}:latest" not in names:
-            self.observer.event("system", "error", {"error": f"model {self.settings.ollama_model!r} nie jest na liście Ollamy ({', '.join(names) or 'pusto'}). Sprawdź OLLAMA_MODEL w .env lub pobierz: ollama pull {self.settings.ollama_model}"})
+            self.observer.event("system", "error", {"error": f"model {self.settings.ollama_model!r} nie jest na liście Ollamy ({', '.join(names) or 'pusto'}). Pobierz go na serwerze: ollama pull {self.settings.ollama_model}"})
 
     async def run(self) -> None:
         s = self.settings

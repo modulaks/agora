@@ -16,8 +16,9 @@ def load_dotenv(path: Path) -> None:
     if not path.exists():
         return
     # utf-8-sig: PowerShell 5.1 zapisuje UTF-8 z BOM.
-    for raw in path.read_text(encoding="utf-8-sig").splitlines():
-        line = raw.strip()
+    # errors="replace": plik skopiowany z innego projektu może mieć komentarze w innym kodowaniu.
+    for raw in path.read_text(encoding="utf-8-sig", errors="replace").splitlines():
+        line = raw.replace("\ufeff", "").strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
@@ -66,11 +67,10 @@ class ChannelSpec:
 @dataclass(slots=True)
 class Settings:
     # model
-    backend: str  # "ollama" | "openai" | "anthropic"
+    backend: str  # "ollama" (qwen) | "openai" (luna) | "anthropic" (sonnet)
     anthropic_model: str
     anthropic_effort: str
     openai_model: str
-    env_file: Path | None  # .env innego projektu, jeśli użyty
     ollama_host: str
     ollama_model: str
     num_ctx: int
@@ -115,48 +115,15 @@ class Settings:
         return f"{self.ollama_model} @ {self.ollama_host}"
 
 
-BACKENDS = ("ollama", "openai", "anthropic")
-
-# Skróty dla --model. None = model z .env danego backendu.
-MODEL_ALIASES: dict[str, tuple[str, str | None]] = {
-    "ollama": ("ollama", None), "llama": ("ollama", None), "lama": ("ollama", None),
-    "openai": ("openai", None), "gpt": ("openai", None),
-    "anthropic": ("anthropic", None), "claude": ("anthropic", None),
-    "sonnet": ("anthropic", "claude-sonnet-5-5"),
-    "haiku": ("anthropic", "claude-haiku-5-5"),
-    "opus": ("anthropic", "claude-opus-5-5"),
+# Trzy modele do wyboru przy starcie: --model qwen | luna | sonnet
+QWEN = "qwen3.8:27b"          # Ollama na serwerze GPU
+LUNA = "luna"                 # OpenAI
+SONNET = "claude-sonnet-5-5"  # Claude
+MODELS: dict[str, tuple[str, str]] = {
+    "qwen": ("ollama", QWEN),
+    "luna": ("openai", LUNA),
+    "sonnet": ("anthropic", SONNET),
 }
-
-
-def parse_model_choice(choice: str) -> tuple[str, str | None]:
-    """--model: skrót (llama, openai, sonnet, haiku), dostawca:model (openai:gpt-5) albo sama nazwa modelu."""
-    c = choice.strip()
-    if c.lower() in MODEL_ALIASES:
-        return MODEL_ALIASES[c.lower()]
-    provider, sep, model = c.partition(":")
-    if sep and provider.lower() in BACKENDS + ("claude", "llama", "lama", "gpt"):
-        backend = MODEL_ALIASES[provider.lower()][0]
-        return backend, model.strip() or None
-    if c.startswith("claude-"):
-        return "anthropic", c
-    if c.startswith(("gpt-", "o1", "o3", "o4", "chatgpt")):
-        return "openai", c
-    return "ollama", c  # np. qwen3.8:27b
-
-
-def load_env_files(env_file: Path | None = None) -> Path | None:
-    """Najpierw .env tego projektu (ma pierwszeństwo), potem .env innego projektu: z niego bierzemy to, czego brakuje (np. klucze)."""
-    load_dotenv(PROJECT_ROOT / ".env")
-    extra = env_file or (Path(os.environ["AGORA_ENV_FILE"]) if os.environ.get("AGORA_ENV_FILE") else None)
-    if extra is None:
-        return None
-    extra = extra.expanduser()
-    if extra.is_dir():
-        extra = extra / ".env"
-    if not extra.is_file():
-        raise SystemExit(f"Nie ma pliku .env pod {extra} (podany w --env albo AGORA_ENV_FILE).")
-    load_dotenv(extra)
-    return extra
 
 
 def load_settings(
@@ -164,10 +131,9 @@ def load_settings(
     *,
     dry_run: bool = False,
     max_ticks: int | None = None,
-    model_choice: str | None = None,
-    env_file: Path | None = None,
+    model: str = "qwen",
 ) -> Settings:
-    used_env = load_env_files(env_file)
+    load_dotenv(PROJECT_ROOT / ".env")
     config_path = config_path or (PROJECT_ROOT / "config" / "community.yaml")
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
 
@@ -193,34 +159,24 @@ def load_settings(
     if not data_dir.is_absolute():
         data_dir = (PROJECT_ROOT / data_dir).resolve()
 
-    backend = _env("AGORA_BACKEND", "ollama").strip().lower()
-    models = {
-        "ollama": _env("OLLAMA_MODEL", "qwen3:8b").strip(),
-        "openai": _env("OPENAI_MODEL", "gpt-5-mini").strip(),
-        "anthropic": _env("ANTHROPIC_MODEL", "claude-sonnet-5-5").strip(),
-    }
-    if model_choice:
-        backend, chosen = parse_model_choice(model_choice)
-        if chosen:
-            models[backend] = chosen
-    if backend not in BACKENDS:
-        raise SystemExit(f".env: AGORA_BACKEND={backend!r}; dozwolone: {', '.join(BACKENDS)}")
+    if model not in MODELS:
+        raise SystemExit(f"--model {model!r}: dostępne {', '.join(MODELS)}")
+    backend = MODELS[model][0]
     effort = _env("ANTHROPIC_EFFORT", "medium").strip().lower()
     if effort not in {"low", "medium", "high", "xhigh", "max"}:
         raise SystemExit(f".env: ANTHROPIC_EFFORT={effort!r}; dozwolone: low, medium, high, xhigh, max")
 
     return Settings(
         backend=backend,
-        anthropic_model=models["anthropic"],
+        anthropic_model=SONNET,
         anthropic_effort=effort,
-        openai_model=models["openai"],
-        env_file=used_env,
-        ollama_host=_env("OLLAMA_HOST", "http://localhost:11434"),
-        ollama_model=models["ollama"],
-        num_ctx=_env_int("OLLAMA_NUM_CTX", 16384),
+        openai_model=LUNA,
+        ollama_host=_env("OLLAMA_HOST", "http://10.67.3.153:11434"),
+        ollama_model=QWEN,
+        num_ctx=_env_int("OLLAMA_NUM_CTX", 65536),
         concurrency=max(1, _env_int("OLLAMA_CONCURRENCY", 2)),
         think=_env_bool("OLLAMA_THINK", True),
-        llm_timeout=_env_float("OLLAMA_TIMEOUT", 600.0),
+        llm_timeout=_env_float("OLLAMA_TIMEOUT", 900.0),
         tick_seconds=_env_float("AGORA_TICK_SECONDS", 20.0),
         tick_jitter=_env_float("AGORA_TICK_JITTER", 10.0),
         max_tool_rounds=_env_int("AGORA_MAX_TOOL_ROUNDS", 6),

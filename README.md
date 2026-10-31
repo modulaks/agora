@@ -19,12 +19,12 @@ Windows (instalacja + start jednym poleceniem):
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-Wybór modelu przy starcie (klucze mogą być w `.env` innego projektu):
+Wybór modelu przy starcie (klucze API: skopiuj `.env` z projektu, w którym już są):
 
 ```powershell
-.\start.ps1 --model llama
-.\start.ps1 --model openai --env C:\Users\ja\inny-projekt\.env
-.\start.ps1 --model sonnet --env C:\Users\ja\inny-projekt\.env
+.\start.ps1                  # qwen3.8:27b na Ollamie (serwer GPU), domyślnie
+.\start.ps1 --model luna      # Luna przez OpenAI (OPENAI_API_KEY)
+.\start.ps1 --model sonnet    # Claude Sonnet 5.5 (ANTHROPIC_API_KEY)
 ```
 
 Pełny log konsoli zapisuje się zawsze do `community/agora-log.txt`.
@@ -38,7 +38,7 @@ python -m agora.viewer        # przeglądarka
 python -m agora.export        # zrzut kanałów, DM-ów, pamięci agentów i CODEX do community/export/*.md
 ```
 
-Model w Ollamie musi umieć wołać narzędzia (Qwen3, Llama 3.1+, Mistral, GPT-OSS). `qwen3:8b` działa, większy będzie rozumował lepiej. Jeśli tag modelu u Ciebie jest inny (np. `qwen3:14b`), zmień `OLLAMA_MODEL` w `.env`. `OLLAMA_NUM_CTX=16384` jest ważne: domyślne 4096 w Ollamie nie mieści kontekstu tury. Przy braku VRAM zejdź do 8192.
+Trzy modele do wyboru (`--model`): `qwen` = `qwen3.8:27b` na Ollamie, `luna` = Luna przez OpenAI, `sonnet` = Claude Sonnet 5.5. Nazwy są w `agora/settings.py` (`MODELS`). `OLLAMA_NUM_CTX` jest ważne: domyślne 4096 w Ollamie nie mieści kontekstu tury.
 
 ## Co się dzieje w środku
 
@@ -94,11 +94,9 @@ Kanał `#graf` to dziennik systemowy wszystkich zmian w grafie, czytelny dla age
 
 | zmienna | znaczenie |
 |---|---|
-| `AGORA_BACKEND` | domyślny model: `ollama`, `openai` albo `anthropic`; przy starcie nadpisuje go `--model llama\|openai\|sonnet\|haiku` |
-| `AGORA_ENV_FILE` | `.env` innego projektu, z którego brać brakujące klucze (to samo co `--env`) |
-| `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL` | OpenAI chat completions (domyślnie `gpt-5-mini`) albo inny serwer zgodny z API OpenAI |
-| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT` | klucz, model (`claude-sonnet-5-5` / `claude-haiku-5-5`), głębia myślenia (`low`/`medium`/`high`) |
-| `OLLAMA_HOST`, `OLLAMA_MODEL` | natywne API Ollamy i tag modelu |
+| `OPENAI_API_KEY` | klucz dla `--model luna` |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_EFFORT` | klucz dla `--model sonnet`, głębia myślenia (`low`/`medium`/`high`) |
+| `OLLAMA_HOST` | natywne API Ollamy dla `--model qwen` |
 | `OLLAMA_NUM_CTX` | okno kontekstu (16384 zalecane) |
 | `OLLAMA_CONCURRENCY` | ile wywołań naraz (Ollama i tak kolejkuje) |
 | `OLLAMA_THINK` | 1 = myślenie modelu włączone |

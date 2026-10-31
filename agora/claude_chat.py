@@ -1,6 +1,6 @@
 """Backend Claude (Anthropic API): ta sama pętla tool-calling co OllamaChat, raportuje te same zdarzenia.
 
-Wybór: AGORA_BACKEND=anthropic w .env, klucz w ANTHROPIC_API_KEY. Płatne za tokeny.
+Wybór: --model sonnet, klucz ANTHROPIC_API_KEY w .env. Płatne za tokeny.
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ class AnthropicChat:
             except anthropic.AuthenticationError:
                 result.error = "zły lub brakujący ANTHROPIC_API_KEY w .env"
             except anthropic.NotFoundError:
-                result.error = f"model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu (ANTHROPIC_MODEL w .env)"
+                result.error = f"model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu"
             except anthropic.APIError as e:
                 result.error = f"{type(e).__name__}: {e}"
             if result.error:
@@ -156,6 +156,6 @@ class AnthropicChat:
         except anthropic.AuthenticationError:
             raise SystemExit("Claude API: zły lub brakujący klucz. Wpisz ANTHROPIC_API_KEY=... w pliku .env (klucz z https://console.anthropic.com/settings/keys).")
         except anthropic.NotFoundError:
-            raise SystemExit(f"Claude API: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu. Popraw ANTHROPIC_MODEL w .env (np. claude-sonnet-5-5 albo claude-haiku-5-5).")
+            raise SystemExit(f"Claude API: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except anthropic.APIConnectionError as e:
             raise SystemExit(f"Claude API: brak połączenia z api.anthropic.com ({type(e).__name__}). Sprawdź internet / proxy.")

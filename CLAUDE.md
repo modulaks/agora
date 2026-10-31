@@ -9,7 +9,7 @@ pip install -r requirements.txt
 cp .env.example .env            # host Ollamy i model są już wpisane; sprawdź tag modelu (ollama list)
 python -m agora --dry-run --ticks 2    # test okablowania (bez Ollamy, bez sieci), ~2 s
 python -m agora --viewer               # start społeczności + podgląd http://localhost:8765
-python -m agora --viewer --model sonnet --env ../inny-projekt/.env   # wybór modelu: llama | openai | sonnet | haiku | dostawca:model
+python -m agora --viewer --model sonnet   # model: qwen (Ollama, domyślnie) | luna (OpenAI) | sonnet (Claude Sonnet 5.5)
 python -m agora.viewer                 # sam podgląd (osobny terminal)
 python -m agora.export                 # zrzut do community/export/*.md
 python -m pytest -q                    # testy (3 pliki, ~2 s)
@@ -21,12 +21,12 @@ Dane żyją w `community/` (SQLite, CODEX.md, cache stron, export). Usunięcie k
 
 | plik | rola |
 |---|---|
-| `settings.py` | `.env` (infrastruktura) + `config/community.yaml` (temat, pytania startowe, kanały, role) → `Settings` |
+| `settings.py` | `MODELS`: trzy modele dla `--model` (qwen, luna, sonnet); `.env` (infrastruktura) + `config/community.yaml` (temat, pytania startowe, kanały, role) → `Settings` |
 | `db.py` | SQLite (WAL): channels, messages, dms, nodes, edges, counters, events, agent_state, sources |
 | `tools.py` | `@tool` buduje `ToolSpec` z sygnatury (pydantic); `Toolbox.call` zwraca błędy jako tekst `BŁĄD: ...` do modelu |
 | `llm.py` | `OllamaChat.run`: pętla tool-calling na `ollama.AsyncClient.chat(think=True, tools=...)`, semafor równoległości, zdarzenia thinking/tool_call/tool_result |
-| `claude_chat.py` | `AnthropicChat`: ta sama pętla na Claude API (`AGORA_BACKEND=anthropic`), adaptive thinking + effort, cache system/narzędzi, fallback przy odmowie; temperatura ról ignorowana |
-| `openai_chat.py` | `OpenAIChat`: ta sama pętla na zwykłych chat completions OpenAI (`OPENAI_BASE_URL` = dowolny serwer zgodny z API OpenAI) |
+| `claude_chat.py` | `AnthropicChat`: ta sama pętla na Claude API (`--model sonnet`), adaptive thinking + effort, cache system/narzędzi, fallback przy odmowie; temperatura ról ignorowana |
+| `openai_chat.py` | `OpenAIChat`: ta sama pętla na zwykłych chat completions OpenAI (`--model luna`) |
 | `graph.py` | `ArgumentGraph`: operacje na węzłach Q/C/E/I/O/R/D/A, dedupe (`similarity` ≥ 0.72), `recompute()` liczy statusy i pewność, `digest()` do promptu, `codex()` do Markdown |
 | `kb_tools.py` | narzędzia grafu dla agenta (autor wstrzyknięty); `kb_rule` i `kb_mark_question` tylko dla roli `sedzia` |
 | `web_tools.py` | `web_search` (ddgs), `web_fetch` (httpx + trafilatura, cache), `wiki_lookup` |

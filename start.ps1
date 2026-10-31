@@ -1,10 +1,9 @@
 # Agora: instalacja i start jednym poleceniem (Windows PowerShell).
 # Uzycie:  powershell -ExecutionPolicy Bypass -File .\start.ps1
-# Dodatkowe opcje ida dalej do programu, np.:
-#   .\start.ps1 --model llama        (Ollama z .env)
-#   .\start.ps1 --model openai       (OpenAI, klucz OPENAI_API_KEY)
-#   .\start.ps1 --model sonnet       (Claude Sonnet, klucz ANTHROPIC_API_KEY)
-#   .\start.ps1 --model sonnet --env C:\Users\ja\inny-projekt\.env
+# Wybor modelu:
+#   .\start.ps1                   (qwen, Ollama na serwerze GPU)
+#   .\start.ps1 --model luna      (OpenAI, klucz OPENAI_API_KEY w .env)
+#   .\start.ps1 --model sonnet    (Claude Sonnet 5.5, klucz ANTHROPIC_API_KEY w .env)
 #   .\start.ps1 --dry-run --ticks 2
 
 Set-Location $PSScriptRoot
