@@ -16,6 +16,10 @@ from .llm import ChatResult, EventSink, _emit, add_usage, broken_key_message, ma
 from .tools import Toolbox
 
 
+# Znane nazwy GPT Luna w API, od najnowszej.
+LUNA_NAMES = ("gpt-6-luna", "gpt-5.6-luna")
+
+
 class OpenAIChat:
     """Temperatura z ról nie jest wysyłana: modele rozumujące (gpt-5, o-seria) przyjmują tylko domyślną."""
 
@@ -120,9 +124,23 @@ class OpenAIChat:
             raise SystemExit(msg)
         try:
             await self._client.models.retrieve(self.model)
+            return
+        except openai.NotFoundError:
+            pass  # niżej: szukamy tej rodziny modeli na koncie
         except openai.AuthenticationError:
             raise SystemExit(f"OpenAI odrzucił klucz {mask_key(os.environ.get('OPENAI_API_KEY'))} (unieważniony, wygasły albo z innego konta). Nowy klucz: https://platform.openai.com/api-keys")
-        except openai.NotFoundError:
-            raise SystemExit(f"OpenAI: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except openai.APIConnectionError as e:
             raise SystemExit(f"OpenAI: brak połączenia ({type(e).__name__}). Sprawdź internet / OPENAI_BASE_URL.")
+        found = await self._find_on_account()
+        if found is None:
+            raise SystemExit(f"OpenAI: na tym koncie nie ma modelu {self.model!r} ani żadnej innej wersji Luny.")
+        self.model = found
+
+    async def _find_on_account(self) -> str | None:
+        """Model z tej samej rodziny dostępny na koncie: najpierw znane nazwy, potem dowolna Luna (bez wariantu -fast, droższego 2x)."""
+        ids = [m.id async for m in self._client.models.list()]
+        for name in LUNA_NAMES:
+            if name in ids:
+                return name
+        lunas = sorted((i for i in ids if "luna" in i.lower()), key=lambda i: (i.lower().endswith("-fast"), i), reverse=False)
+        return lunas[0] if lunas else None

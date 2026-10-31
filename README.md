@@ -23,7 +23,7 @@ Wybór modelu przy starcie (klucze API: skopiuj `.env` z projektu, w którym ju�
 
 ```powershell
 .\start.ps1                  # qwen3.8:27b na Ollamie (serwer GPU), domyślnie
-.\start.ps1 --model luna      # Luna przez OpenAI (OPENAI_API_KEY)
+.\start.ps1 --model luna      # GPT Luna przez OpenAI (`gpt-6-luna`) (OPENAI_API_KEY)
 .\start.ps1 --model sonnet    # Claude Sonnet 5.5 (ANTHROPIC_API_KEY)
 ```
 
@@ -38,7 +38,7 @@ python -m agora.viewer        # przeglądarka
 python -m agora.export        # zrzut kanałów, DM-ów, pamięci agentów i CODEX do community/export/*.md
 ```
 
-Trzy modele do wyboru (`--model`): `qwen` = `qwen3.8:27b` na Ollamie, `luna` = Luna przez OpenAI, `sonnet` = Claude Sonnet 5.5. Nazwy są w `agora/settings.py` (`MODELS`). `OLLAMA_NUM_CTX` jest ważne: domyślne 4096 w Ollamie nie mieści kontekstu tury.
+Trzy modele do wyboru (`--model`): `qwen` = `qwen3.8:27b` na Ollamie, `luna` = GPT Luna przez OpenAI (`gpt-6-luna`), `sonnet` = Claude Sonnet 5.5. Nazwy są w `agora/settings.py` (`MODELS`). `OLLAMA_NUM_CTX` jest ważne: domyślne 4096 w Ollamie nie mieści kontekstu tury.
 
 ## Co się dzieje w środku
 

@@ -118,7 +118,7 @@ class Settings:
 
 # Trzy modele do wyboru przy starcie: --model qwen | luna | sonnet
 QWEN = "qwen3.8:27b"          # Ollama na serwerze GPU
-LUNA = "luna"                 # OpenAI
+LUNA = "gpt-6-luna"           # OpenAI GPT Luna (gdy konto go nie ma: inna Luna z konta, patrz OpenAIChat.check)
 SONNET = "claude-sonnet-5-5"  # Claude
 MODELS: dict[str, tuple[str, str]] = {
     "qwen": ("ollama", QWEN),

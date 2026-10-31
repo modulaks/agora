@@ -127,6 +127,9 @@ class Community:
             check = getattr(self.chat, "check", None)
             if check is not None:
                 await check()
+            if self.settings.backend == "openai" and getattr(self.chat, "model", None) != self.settings.openai_model:
+                self.settings.openai_model = self.chat.model  # type: ignore[attr-defined]
+                self.observer.event("system", "system", {"text": f"Używam modelu dostępnego na koncie: {self.settings.openai_model}"})
             return
         import ollama
 

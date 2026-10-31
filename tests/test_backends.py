@@ -15,7 +15,7 @@ from agora.tools import Toolbox, tool
 
 @pytest.mark.parametrize("model, backend, label", [
     ("qwen", "ollama", "qwen3.8:27b @ "),
-    ("luna", "openai", "luna (OpenAI API)"),
+    ("luna", "openai", "gpt-6-luna (OpenAI API)"),
     ("sonnet", "anthropic", "claude-sonnet-5-5 (Claude API"),
 ])
 def test_three_models(model, backend, label):
@@ -102,3 +102,43 @@ def test_key_copied_from_chat_is_reported(monkeypatch):
     assert "uszkodzony" in broken_key_message("OPENAI_API_KEY")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-9DFrlFStb12g83Lf5ao7vfiOlzqw-PyESYa3mJ_EZk58")
     assert broken_key_message("OPENAI_API_KEY") is None
+
+
+class _Models:
+    def __init__(self, ids):
+        self.ids = ids
+
+    async def retrieve(self, model):
+        if model not in self.ids:
+            import httpx2
+            raise __import__("openai").NotFoundError("brak", response=httpx2.Response(404, request=httpx2.Request("GET", "https://x")), body=None)
+        return NS(id=model)
+
+    def list(self):
+        ids = self.ids
+
+        async def gen():
+            for i in ids:
+                yield NS(id=i)
+        return gen()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ids, expected", [
+    (["gpt-6-luna", "gpt-5.6-luna"], "gpt-6-luna"),
+    (["gpt-4o", "gpt-5.6-luna-fast", "gpt-5.6-luna"], "gpt-5.6-luna"),
+    (["gpt-4o", "gpt-7-luna-preview"], "gpt-7-luna-preview"),
+])
+async def test_luna_resolved_from_account(ids, expected, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-poprawny-klucz-testowy")
+    chat = OpenAIChat("gpt-6-luna", client=NS(models=_Models(ids)))
+    await chat.check()
+    assert chat.model == expected
+
+
+@pytest.mark.asyncio
+async def test_no_luna_on_account(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-poprawny-klucz-testowy")
+    chat = OpenAIChat("gpt-6-luna", client=NS(models=_Models(["gpt-4o"])))
+    with pytest.raises(SystemExit, match="Luny"):
+        await chat.check()
