@@ -41,6 +41,10 @@ class Community:
             from .claude_chat import AnthropicChat
 
             return AnthropicChat(settings.anthropic_model, effort=settings.anthropic_effort, timeout=settings.llm_timeout)
+        if settings.backend == "openai":
+            from .openai_chat import OpenAIChat
+
+            return OpenAIChat(settings.openai_model, timeout=settings.llm_timeout)
         return OllamaChat(
             settings.ollama_host, settings.ollama_model,
             num_ctx=settings.num_ctx, think=settings.think, concurrency=settings.concurrency, timeout=settings.llm_timeout,
@@ -118,8 +122,10 @@ class Community:
     async def check_model(self) -> None:
         if self.settings.dry_run:
             return
-        if self.settings.backend == "anthropic":
-            self.observer.event("system", "system", {"text": f"Sprawdzam klucz i model Claude ({self.settings.anthropic_model}) ..."})
+        if self.settings.env_file is not None:
+            self.observer.event("system", "system", {"text": f"Dodatkowy .env: {self.settings.env_file}"})
+        if self.settings.backend in ("anthropic", "openai"):
+            self.observer.event("system", "system", {"text": f"Sprawdzam klucz i model: {self.settings.model_label} ..."})
             check = getattr(self.chat, "check", None)
             if check is not None:
                 await check()

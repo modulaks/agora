@@ -1,6 +1,11 @@
 # Agora: instalacja i start jednym poleceniem (Windows PowerShell).
 # Uzycie:  powershell -ExecutionPolicy Bypass -File .\start.ps1
-# Dodatkowe opcje ida dalej do programu, np.:  .\start.ps1 --dry-run --ticks 2
+# Dodatkowe opcje ida dalej do programu, np.:
+#   .\start.ps1 --model llama        (Ollama z .env)
+#   .\start.ps1 --model openai       (OpenAI, klucz OPENAI_API_KEY)
+#   .\start.ps1 --model sonnet       (Claude Sonnet, klucz ANTHROPIC_API_KEY)
+#   .\start.ps1 --model sonnet --env C:\Users\ja\inny-projekt\.env
+#   .\start.ps1 --dry-run --ticks 2
 
 Set-Location $PSScriptRoot
 $env:PYTHONUTF8 = "1"
@@ -28,4 +33,4 @@ if ($hash -ne $installed) {
 if (-not (Test-Path ".env")) { Copy-Item ".env.example" ".env" }
 
 Write-Host "Start. Log zapisuje sie do community\agora-log.txt, podglad: http://localhost:8765" -ForegroundColor Cyan
-if ($args.Count -gt 0) { & $py -m agora @args } else { & $py -m agora --viewer }
+& $py -m agora --viewer @args

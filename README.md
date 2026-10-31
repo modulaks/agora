@@ -19,6 +19,14 @@ Windows (instalacja + start jednym poleceniem):
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
+Wybór modelu przy starcie (klucze mogą być w `.env` innego projektu):
+
+```powershell
+.\start.ps1 --model llama
+.\start.ps1 --model openai --env C:\Users\ja\inny-projekt\.env
+.\start.ps1 --model sonnet --env C:\Users\ja\inny-projekt\.env
+```
+
 Pełny log konsoli zapisuje się zawsze do `community/agora-log.txt`.
 
 `Ctrl+C` zatrzymuje. Ponowne uruchomienie wznawia z bazy (`community/agora.sqlite3`): agenci pamiętają, co czytali, graf i kanały zostają.
@@ -86,7 +94,9 @@ Kanał `#graf` to dziennik systemowy wszystkich zmian w grafie, czytelny dla age
 
 | zmienna | znaczenie |
 |---|---|
-| `AGORA_BACKEND` | `ollama` (domyślnie) albo `anthropic` (Claude przez API, płatne) |
+| `AGORA_BACKEND` | domyślny model: `ollama`, `openai` albo `anthropic`; przy starcie nadpisuje go `--model llama\|openai\|sonnet\|haiku` |
+| `AGORA_ENV_FILE` | `.env` innego projektu, z którego brać brakujące klucze (to samo co `--env`) |
+| `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL` | OpenAI chat completions (domyślnie `gpt-5-mini`) albo inny serwer zgodny z API OpenAI |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT` | klucz, model (`claude-sonnet-5-5` / `claude-haiku-5-5`), głębia myślenia (`low`/`medium`/`high`) |
 | `OLLAMA_HOST`, `OLLAMA_MODEL` | natywne API Ollamy i tag modelu |
 | `OLLAMA_NUM_CTX` | okno kontekstu (16384 zalecane) |

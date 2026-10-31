@@ -66,9 +66,11 @@ class ChannelSpec:
 @dataclass(slots=True)
 class Settings:
     # model
-    backend: str  # "ollama" | "anthropic"
+    backend: str  # "ollama" | "openai" | "anthropic"
     anthropic_model: str
     anthropic_effort: str
+    openai_model: str
+    env_file: Path | None  # .env innego projektu, jeśli użyty
     ollama_host: str
     ollama_model: str
     num_ctx: int
@@ -108,11 +110,64 @@ class Settings:
     def model_label(self) -> str:
         if self.backend == "anthropic":
             return f"{self.anthropic_model} (Claude API, effort {self.anthropic_effort})"
+        if self.backend == "openai":
+            return f"{self.openai_model} (OpenAI API)"
         return f"{self.ollama_model} @ {self.ollama_host}"
 
 
-def load_settings(config_path: Path | None = None, *, dry_run: bool = False, max_ticks: int | None = None) -> Settings:
+BACKENDS = ("ollama", "openai", "anthropic")
+
+# Skróty dla --model. None = model z .env danego backendu.
+MODEL_ALIASES: dict[str, tuple[str, str | None]] = {
+    "ollama": ("ollama", None), "llama": ("ollama", None), "lama": ("ollama", None),
+    "openai": ("openai", None), "gpt": ("openai", None),
+    "anthropic": ("anthropic", None), "claude": ("anthropic", None),
+    "sonnet": ("anthropic", "claude-sonnet-5-5"),
+    "haiku": ("anthropic", "claude-haiku-5-5"),
+    "opus": ("anthropic", "claude-opus-5-5"),
+}
+
+
+def parse_model_choice(choice: str) -> tuple[str, str | None]:
+    """--model: skrót (llama, openai, sonnet, haiku), dostawca:model (openai:gpt-5) albo sama nazwa modelu."""
+    c = choice.strip()
+    if c.lower() in MODEL_ALIASES:
+        return MODEL_ALIASES[c.lower()]
+    provider, sep, model = c.partition(":")
+    if sep and provider.lower() in BACKENDS + ("claude", "llama", "lama", "gpt"):
+        backend = MODEL_ALIASES[provider.lower()][0]
+        return backend, model.strip() or None
+    if c.startswith("claude-"):
+        return "anthropic", c
+    if c.startswith(("gpt-", "o1", "o3", "o4", "chatgpt")):
+        return "openai", c
+    return "ollama", c  # np. qwen3.8:27b
+
+
+def load_env_files(env_file: Path | None = None) -> Path | None:
+    """Najpierw .env tego projektu (ma pierwszeństwo), potem .env innego projektu: z niego bierzemy to, czego brakuje (np. klucze)."""
     load_dotenv(PROJECT_ROOT / ".env")
+    extra = env_file or (Path(os.environ["AGORA_ENV_FILE"]) if os.environ.get("AGORA_ENV_FILE") else None)
+    if extra is None:
+        return None
+    extra = extra.expanduser()
+    if extra.is_dir():
+        extra = extra / ".env"
+    if not extra.is_file():
+        raise SystemExit(f"Nie ma pliku .env pod {extra} (podany w --env albo AGORA_ENV_FILE).")
+    load_dotenv(extra)
+    return extra
+
+
+def load_settings(
+    config_path: Path | None = None,
+    *,
+    dry_run: bool = False,
+    max_ticks: int | None = None,
+    model_choice: str | None = None,
+    env_file: Path | None = None,
+) -> Settings:
+    used_env = load_env_files(env_file)
     config_path = config_path or (PROJECT_ROOT / "config" / "community.yaml")
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
 
@@ -139,18 +194,29 @@ def load_settings(config_path: Path | None = None, *, dry_run: bool = False, max
         data_dir = (PROJECT_ROOT / data_dir).resolve()
 
     backend = _env("AGORA_BACKEND", "ollama").strip().lower()
-    if backend not in {"ollama", "anthropic"}:
-        raise ValueError(f".env: AGORA_BACKEND={backend!r}; dozwolone: ollama, anthropic")
+    models = {
+        "ollama": _env("OLLAMA_MODEL", "qwen3:8b").strip(),
+        "openai": _env("OPENAI_MODEL", "gpt-5-mini").strip(),
+        "anthropic": _env("ANTHROPIC_MODEL", "claude-sonnet-5-5").strip(),
+    }
+    if model_choice:
+        backend, chosen = parse_model_choice(model_choice)
+        if chosen:
+            models[backend] = chosen
+    if backend not in BACKENDS:
+        raise SystemExit(f".env: AGORA_BACKEND={backend!r}; dozwolone: {', '.join(BACKENDS)}")
     effort = _env("ANTHROPIC_EFFORT", "medium").strip().lower()
     if effort not in {"low", "medium", "high", "xhigh", "max"}:
-        raise ValueError(f".env: ANTHROPIC_EFFORT={effort!r}; dozwolone: low, medium, high, xhigh, max")
+        raise SystemExit(f".env: ANTHROPIC_EFFORT={effort!r}; dozwolone: low, medium, high, xhigh, max")
 
     return Settings(
         backend=backend,
-        anthropic_model=_env("ANTHROPIC_MODEL", "claude-sonnet-5-5").strip(),
+        anthropic_model=models["anthropic"],
         anthropic_effort=effort,
+        openai_model=models["openai"],
+        env_file=used_env,
         ollama_host=_env("OLLAMA_HOST", "http://localhost:11434"),
-        ollama_model=_env("OLLAMA_MODEL", "qwen3:8b"),
+        ollama_model=models["ollama"],
         num_ctx=_env_int("OLLAMA_NUM_CTX", 16384),
         concurrency=max(1, _env_int("OLLAMA_CONCURRENCY", 2)),
         think=_env_bool("OLLAMA_THINK", True),
