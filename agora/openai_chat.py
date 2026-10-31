@@ -12,7 +12,7 @@ from typing import Any
 
 import openai
 
-from .llm import ChatResult, EventSink, _emit, add_usage, with_heartbeat
+from .llm import ChatResult, EventSink, _emit, add_usage, mask_key, with_heartbeat
 from .tools import Toolbox
 
 
@@ -119,7 +119,7 @@ class OpenAIChat:
         try:
             await self._client.models.retrieve(self.model)
         except openai.AuthenticationError:
-            raise SystemExit("OpenAI odrzucił OPENAI_API_KEY z .env (klucz unieważniony lub wygasły). Nowy klucz: https://platform.openai.com/api-keys")
+            raise SystemExit(f"OpenAI odrzucił klucz {mask_key(os.environ.get('OPENAI_API_KEY'))} (unieważniony, wygasły albo z innego konta). Nowy klucz: https://platform.openai.com/api-keys")
         except openai.NotFoundError:
             raise SystemExit(f"OpenAI: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except openai.APIConnectionError as e:

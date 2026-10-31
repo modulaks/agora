@@ -67,6 +67,13 @@ async def with_heartbeat(coro: Awaitable[Any], on_event: EventSink, round_no: in
             task.cancel()
 
 
+def mask_key(key: str | None) -> str:
+    """Początek i koniec klucza, żeby było widać, który klucz poszedł do serwera."""
+    if not key:
+        return "(brak)"
+    return f"{key[:10]}…{key[-4:]}" if len(key) > 16 else "(za krótki)"
+
+
 def add_usage(total: dict[str, int], **counts: int | None) -> None:
     for key, value in counts.items():
         if value:

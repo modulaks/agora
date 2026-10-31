@@ -41,6 +41,14 @@ def test_dotenv_copied_from_other_project(tmp_path, monkeypatch):
     assert "EMPTY_KEY" not in os.environ
 
 
+def test_dotenv_wins_over_old_windows_variable(tmp_path, monkeypatch):
+    monkeypatch.setenv("C_KEY", "sk-stary-z-setx")
+    env = tmp_path / ".env"
+    env.write_text("C_KEY=sk-nowy-z-env\n", encoding="ascii")
+    load_dotenv(env)
+    assert os.environ["C_KEY"] == "sk-nowy-z-env"
+
+
 class StubOpenAI:
     def __init__(self):
         self.calls = []

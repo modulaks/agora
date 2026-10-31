@@ -12,7 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_dotenv(path: Path) -> None:
-    """Minimalny loader .env: nie nadpisuje zmiennych już ustawionych w środowisku."""
+    """Minimalny loader .env. Plik .env wygrywa ze zmiennymi środowiskowymi Windowsa:
+    stary OPENAI_API_KEY ustawiony kiedyś przez setx nie może zasłonić klucza z .env."""
     if not path.exists():
         return
     # utf-8-sig: PowerShell 5.1 zapisuje UTF-8 z BOM.
@@ -25,7 +26,7 @@ def load_dotenv(path: Path) -> None:
         key = key.strip()
         value = value.strip().strip('"').strip("'")
         if value:  # puste "KLUCZ=" traktujemy jak brak ustawienia
-            os.environ.setdefault(key, value)
+            os.environ[key] = value
 
 
 def _env(name: str, default: str) -> str:

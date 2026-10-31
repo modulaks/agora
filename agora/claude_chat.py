@@ -5,12 +5,13 @@ Wybór: --model sonnet, klucz ANTHROPIC_API_KEY w .env. Płatne za tokeny.
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
 import anthropic
 
-from .llm import ChatResult, EventSink, _emit, add_usage, with_heartbeat
+from .llm import ChatResult, EventSink, _emit, add_usage, mask_key, with_heartbeat
 from .tools import Toolbox
 
 MAX_TOKENS = 16000
@@ -154,7 +155,7 @@ class AnthropicChat:
         except TypeError:  # SDK nie znalazł żadnego klucza
             raise SystemExit("Claude API: brak klucza. Wpisz ANTHROPIC_API_KEY=... w pliku .env (klucz z https://console.anthropic.com/settings/keys).")
         except anthropic.AuthenticationError:
-            raise SystemExit("Anthropic odrzucił ANTHROPIC_API_KEY z .env (klucz unieważniony lub wygasły). Nowy klucz: https://console.anthropic.com/settings/keys")
+            raise SystemExit(f"Anthropic odrzucił klucz {mask_key(os.environ.get('ANTHROPIC_API_KEY'))} (unieważniony, wygasły albo z innego konta). Nowy klucz: https://console.anthropic.com/settings/keys")
         except anthropic.NotFoundError:
             raise SystemExit(f"Claude API: model {self.model!r} nie istnieje albo klucz nie ma do niego dostępu.")
         except anthropic.APIConnectionError as e:
