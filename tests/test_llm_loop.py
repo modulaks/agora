@@ -49,3 +49,29 @@ async def test_tool_loop_roundtrip():
     assert kinds == ["thinking", "tool_call", "tool_result"]
     schema = Toolbox([add]).schemas()[0]
     assert schema["function"]["parameters"]["required"] == ["a"]
+
+
+class SlowClient:
+    async def chat(self, **kwargs):
+        import asyncio
+
+        await asyncio.sleep(0.35)
+        return ChatResponse(model="x", message=Message(role="assistant", content="gotowe"), done=True)
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_while_waiting(monkeypatch):
+    import agora.llm as llm
+
+    monkeypatch.setattr(llm, "HEARTBEAT_SECONDS", 0.1)
+    chat = OllamaChat("http://localhost:1", "fake", concurrency=1)
+    chat._client = SlowClient()
+    events = []
+
+    async def on_event(kind, payload):
+        events.append((kind, payload))
+
+    result = await chat.run(system="s", user="u", toolbox=Toolbox([]), temperature=0.1, on_event=on_event, max_rounds=1)
+    assert result.text == "gotowe"
+    waits = [p for k, p in events if k == "waiting"]
+    assert len(waits) >= 2 and all(p["round"] == 1 for p in waits)

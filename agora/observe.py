@@ -100,6 +100,8 @@ class Observer:
             self._print(f"[dim]── {escape(agent)} tura {p.get('tick')} (nowych wiad.: {p.get('unread', 0)}, DM: {p.get('dms', 0)})[/]")
         elif kind == "tick_end":
             self._print(f"  [{c}]■ {escape(agent)}[/] [dim]({p.get('seconds')}s, rund {p.get('rounds')}, narzędzi {p.get('tool_calls')})[/] {escape(_short(p.get('summary', ''), 300))}")
+        elif kind == "waiting":
+            self._print(f"  [dim]⏳ {escape(agent)} czeka na model ({p.get('seconds')} s, runda {p.get('round')})[/]")
         elif kind == "memory":
             self._print(f"  [dim]🧠 {escape(agent)} {escape(p.get('what', ''))}: {escape(_short(p.get('text', ''), 200))}[/]")
         elif kind in ("llm_error", "error"):

@@ -109,11 +109,18 @@ class Community:
             return
         import ollama
 
-        client = ollama.AsyncClient(host=self.settings.ollama_host, timeout=20.0)
+        host = self.settings.ollama_host
+        self.observer.event("system", "system", {"text": f"Łączę się z Ollamą pod {host} ..."})
+        client = ollama.AsyncClient(host=host, timeout=20.0)
         try:
             listing = await client.list()
         except Exception as e:  # noqa: BLE001
-            raise SystemExit(f"Nie mogę połączyć się z Ollamą pod {self.settings.ollama_host}: {e}")
+            reason = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+            raise SystemExit(
+                f"Nie mogę połączyć się z Ollamą pod {host} ({reason}).\n"
+                f"Sprawdź, czy Ollama działa i nasłuchuje w sieci (OLLAMA_HOST=0.0.0.0 po stronie serwera), "
+                f"czy adres w .env jest poprawny i czy firewall przepuszcza port. Test: curl {host}/api/tags"
+            )
         names = [m.model for m in (listing.models or [])]
         if self.settings.ollama_model not in names and f"{self.settings.ollama_model}:latest" not in names:
             self.observer.event("system", "error", {"error": f"model {self.settings.ollama_model!r} nie jest na liście Ollamy ({', '.join(names) or 'pusto'}). Sprawdź OLLAMA_MODEL w .env lub pobierz: ollama pull {self.settings.ollama_model}"})

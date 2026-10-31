@@ -15,6 +15,8 @@ from .tools import Toolbox
 
 EventSink = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
+HEARTBEAT_SECONDS = 30.0
+
 
 @dataclass(slots=True)
 class ChatResult:
@@ -96,6 +98,20 @@ class OllamaChat:
             assert last_exc is not None
             raise last_exc
 
+    async def _chat_with_heartbeat(self, messages: list[Any], *, tools: list[dict[str, Any]] | None, temperature: float, on_event: EventSink, round_no: int):
+        """Wywołanie modelu bez streamingu trwa minutami; co HEARTBEAT_SECONDS raportujemy, że agent czeka."""
+        start = time.monotonic()
+        task = asyncio.ensure_future(self._chat(messages, tools=tools, temperature=temperature))
+        try:
+            while True:
+                done, _ = await asyncio.wait({task}, timeout=HEARTBEAT_SECONDS)
+                if done:
+                    return task.result()
+                await _emit(on_event, "waiting", {"seconds": round(time.monotonic() - start), "round": round_no})
+        finally:
+            if not task.done():
+                task.cancel()
+
     async def run(
         self,
         *,
@@ -116,7 +132,7 @@ class OllamaChat:
             # Ostatnia runda bez narzędzi: wymuszamy zamknięcie tury tekstem.
             tools = schemas if round_no <= max_rounds else None
             try:
-                response = await self._chat(messages, tools=tools, temperature=temperature)
+                response = await self._chat_with_heartbeat(messages, tools=tools, temperature=temperature, on_event=on_event, round_no=round_no)
             except Exception as e:  # noqa: BLE001
                 result.error = f"{type(e).__name__}: {e}"
                 await _emit(on_event, "llm_error", {"error": result.error, "round": round_no})
