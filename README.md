@@ -8,7 +8,7 @@ Stack: natywny klient Ollamy (tool calling + thinking), SQLite jako serwer społ
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env        # wpisz host Ollamy i model (domyślnie http://10.67.3.153:11434, qwen3:8b)
+cp .env.example .env        # wpisz host Ollamy i model (domyślnie http://10.67.3.153:11434, qwen3.8:27b)
 python -m agora --dry-run --ticks 2   # test okablowania bez Ollamy i bez sieci
 python -m agora --viewer              # prawdziwy start, podgląd na http://localhost:8765
 ```
