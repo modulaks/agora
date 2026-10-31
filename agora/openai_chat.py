@@ -31,6 +31,19 @@ class OpenAIChat:
             # Serwer lokalny (OPENAI_BASE_URL) zwykle nie wymaga klucza, ale SDK chce niepustej wartości.
             client = openai.AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY") or "brak", timeout=timeout)
         self._client = client
+        # GPT Luna w chat completions przyjmuje narzędzia tylko z reasoning_effort="none".
+        # Model, który tego pola nie zna, dostanie zapytanie bez niego (patrz _create).
+        self._reasoning_none = True
+
+    async def _create(self, **kwargs: Any) -> Any:
+        if self._reasoning_none:
+            try:
+                return await self._client.chat.completions.create(**kwargs, reasoning_effort="none")
+            except openai.BadRequestError as e:
+                if "reasoning_effort" not in str(e):
+                    raise
+                self._reasoning_none = False
+        return await self._client.chat.completions.create(**kwargs)
 
     async def run(
         self,
@@ -53,7 +66,7 @@ class OpenAIChat:
             last_round = round_no > max_rounds
             try:
                 response = await with_heartbeat(
-                    self._client.chat.completions.create(
+                    self._create(
                         model=self.model,
                         messages=messages,
                         tools=tools,

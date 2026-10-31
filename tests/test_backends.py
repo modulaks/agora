@@ -92,6 +92,7 @@ async def test_openai_tool_loop():
     assert result.tool_calls == 2 and result.rounds == 2
     assert result.usage == {"in": 100, "out": 20, "cache_read": 80}
     assert "temperature" not in stub.calls[0] and stub.calls[0]["tool_choice"] == "auto"
+    assert stub.calls[0]["reasoning_effort"] == "none"
     assert stub.calls[0]["tools"][0]["type"] == "function"
     assert events.count("tool_call") == 2
 
@@ -142,3 +143,28 @@ async def test_no_luna_on_account(monkeypatch):
     chat = OpenAIChat("gpt-6-luna", client=NS(models=_Models(["gpt-4o"])))
     with pytest.raises(SystemExit, match="Luny"):
         await chat.check()
+
+
+@pytest.mark.asyncio
+async def test_model_without_reasoning_effort_gets_request_without_it():
+    import httpx2
+    import openai
+
+    calls = []
+
+    async def create(**kwargs):
+        calls.append(kwargs)
+        if "reasoning_effort" in kwargs:
+            raise openai.BadRequestError("Unsupported parameter: 'reasoning_effort'", response=httpx2.Response(400, request=httpx2.Request("POST", "https://x")), body=None)
+        msg = NS(content="ok", tool_calls=None, refusal=None)
+        return NS(choices=[NS(message=msg, finish_reason="stop")], usage=None)
+
+    chat = OpenAIChat("gpt-4o", client=NS(chat=NS(completions=NS(create=create))))
+
+    async def on_event(kind, payload):
+        pass
+
+    for _ in range(2):
+        result = await chat.run(system="s", user="u", toolbox=Toolbox([]), temperature=0.5, on_event=on_event, max_rounds=1)
+        assert result.text == "ok" and result.error is None
+    assert [("reasoning_effort" in c) for c in calls] == [True, False, False]
