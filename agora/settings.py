@@ -15,7 +15,8 @@ def load_dotenv(path: Path) -> None:
     """Minimalny loader .env: nie nadpisuje zmiennych już ustawionych w środowisku."""
     if not path.exists():
         return
-    for raw in path.read_text(encoding="utf-8").splitlines():
+    # utf-8-sig: PowerShell 5.1 zapisuje UTF-8 z BOM.
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
