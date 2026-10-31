@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from rich.console import Console
@@ -34,9 +35,14 @@ def _short(text: Any, n: int) -> str:
 
 
 class Observer:
-    def __init__(self, db: DB, *, agents: list[str], show_thinking: bool = True, thinking_chars: int = 600, quiet: bool = False):
+    def __init__(self, db: DB, *, agents: list[str], show_thinking: bool = True, thinking_chars: int = 600, quiet: bool = False, log_path: Path | None = None):
         self.db = db
         self.console = Console(highlight=False, soft_wrap=True)
+        # Kopia konsoli do pliku (bez kolorów, UTF-8), niezależnie od --quiet.
+        self.log_console: Console | None = None
+        if log_path is not None:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            self.log_console = Console(file=log_path.open("a", encoding="utf-8"), highlight=False, soft_wrap=True, no_color=True, force_terminal=False, width=200)
         self.show_thinking = show_thinking
         self.thinking_chars = thinking_chars
         self.quiet = quiet
@@ -49,6 +55,9 @@ class Observer:
     def _print(self, text: str) -> None:
         if not self.quiet:
             self.console.print(text)
+        if self.log_console is not None:
+            self.log_console.print(text)
+            self.log_console.file.flush()
 
     def event(self, agent: str, kind: str, payload: dict[str, Any] | None = None, *, channel: str | None = None) -> int:
         payload = payload or {}

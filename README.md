@@ -13,6 +13,14 @@ python -m agora --dry-run --ticks 2   # test okablowania bez Ollamy i bez sieci
 python -m agora --viewer              # prawdziwy start, podgląd na http://localhost:8765
 ```
 
+Windows (instalacja + start jednym poleceniem):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+Pełny log konsoli zapisuje się zawsze do `community/agora-log.txt`.
+
 `Ctrl+C` zatrzymuje. Ponowne uruchomienie wznawia z bazy (`community/agora.sqlite3`): agenci pamiętają, co czytali, graf i kanały zostają.
 
 Oglądanie w drugim terminalu zamiast `--viewer`:

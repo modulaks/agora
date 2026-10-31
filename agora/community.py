@@ -22,7 +22,10 @@ class Community:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.db = DB(settings.db_path)
         names = [r.name for r in settings.roles]
-        self.observer = Observer(self.db, agents=names, show_thinking=settings.show_thinking, thinking_chars=settings.thinking_chars, quiet=quiet)
+        self.observer = Observer(
+            self.db, agents=names, show_thinking=settings.show_thinking, thinking_chars=settings.thinking_chars, quiet=quiet,
+            log_path=settings.data_dir / "agora-log.txt",
+        )
         self.graph = ArgumentGraph(self.db, on_change=self._on_graph_change)
         self.chat: ChatBackend = chat or OllamaChat(
             settings.ollama_host, settings.ollama_model,
