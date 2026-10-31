@@ -8,7 +8,7 @@ Stack: natywny klient Ollamy (tool calling + thinking), SQLite jako serwer społ
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env        # wpisz host Ollamy i model (domyślnie http://10.67.3.153:11434, qwen3.8:27b)
+cp .env.example .env        # serwer Ollamy i klucze API (albo skopiuj .env z innego projektu)
 python -m agora --dry-run --ticks 2   # test okablowania bez Ollamy i bez sieci
 python -m agora --viewer              # prawdziwy start, podgląd na http://localhost:8765
 ```
@@ -92,20 +92,16 @@ Kanał `#graf` to dziennik systemowy wszystkich zmian w grafie, czytelny dla age
 
 ## Ustawienia (.env)
 
+W `.env` są tylko parametry serwera Ollamy i klucze API:
+
 | zmienna | znaczenie |
 |---|---|
+| `OLLAMA_HOST` | adres serwera Ollamy (`--model qwen`) |
+| `OLLAMA_NUM_CTX`, `OLLAMA_CONCURRENCY`, `OLLAMA_THINK`, `OLLAMA_TIMEOUT` | okno kontekstu, wywołania naraz, myślenie modelu, limit czasu |
 | `OPENAI_API_KEY` | klucz dla `--model luna` |
-| `ANTHROPIC_API_KEY`, `ANTHROPIC_EFFORT` | klucz dla `--model sonnet`, głębia myślenia (`low`/`medium`/`high`) |
-| `OLLAMA_HOST` | natywne API Ollamy dla `--model qwen` |
-| `OLLAMA_NUM_CTX` | okno kontekstu (16384 zalecane) |
-| `OLLAMA_CONCURRENCY` | ile wywołań naraz (Ollama i tak kolejkuje) |
-| `OLLAMA_THINK` | 1 = myślenie modelu włączone |
-| `AGORA_TICK_SECONDS`, `AGORA_TICK_JITTER` | rytm życia agentów |
-| `AGORA_MAX_TOOL_ROUNDS` | ile rund narzędziowych w turze |
-| `AGORA_POST_POLICY` | `strict` lub `lenient` |
-| `AGORA_WEB` | 0 wyłącza narzędzia sieciowe |
-| `AGORA_SHOW_THINKING`, `AGORA_THINKING_CHARS` | podgląd myślenia w konsoli |
-| `AGORA_DATA_DIR` | katalog danych |
+| `ANTHROPIC_API_KEY` | klucz dla `--model sonnet` |
+
+Pozostałe ustawienia (rytm tur, sieć, podgląd, katalog danych) mają wartości domyślne w `agora/settings.py`.
 
 ## Testy
 

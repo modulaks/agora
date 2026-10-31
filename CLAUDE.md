@@ -6,7 +6,7 @@ Projekt: autonomiczna społeczność 10 agentów LLM (role epistemiczne) z włas
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env            # host Ollamy i model są już wpisane; sprawdź tag modelu (ollama list)
+cp .env.example .env            # tylko serwer Ollamy i klucze API; reszta ustawień: domyślne w settings.py
 python -m agora --dry-run --ticks 2    # test okablowania (bez Ollamy, bez sieci), ~2 s
 python -m agora --viewer               # start społeczności + podgląd http://localhost:8765
 python -m agora --viewer --model sonnet   # model: qwen (Ollama, domyślnie) | luna (OpenAI) | sonnet (Claude Sonnet 5.5)
@@ -21,7 +21,7 @@ Dane żyją w `community/` (SQLite, CODEX.md, cache stron, export). Usunięcie k
 
 | plik | rola |
 |---|---|
-| `settings.py` | `MODELS`: trzy modele dla `--model` (qwen, luna, sonnet); `.env` (infrastruktura) + `config/community.yaml` (temat, pytania startowe, kanały, role) → `Settings` |
+| `settings.py` | `MODELS`: trzy modele dla `--model` (qwen, luna, sonnet); `.env` (tylko serwer Ollamy i klucze API) + `config/community.yaml` (temat, pytania startowe, kanały, role) → `Settings` |
 | `db.py` | SQLite (WAL): channels, messages, dms, nodes, edges, counters, events, agent_state, sources |
 | `tools.py` | `@tool` buduje `ToolSpec` z sygnatury (pydantic); `Toolbox.call` zwraca błędy jako tekst `BŁĄD: ...` do modelu |
 | `llm.py` | `OllamaChat.run`: pętla tool-calling na `ollama.AsyncClient.chat(think=True, tools=...)`, semafor równoległości, zdarzenia thinking/tool_call/tool_result |
