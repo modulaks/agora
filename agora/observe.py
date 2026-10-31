@@ -108,7 +108,11 @@ class Observer:
         elif kind == "tick_start":
             self._print(f"[dim]── {escape(agent)} tura {p.get('tick')} (nowych wiad.: {p.get('unread', 0)}, DM: {p.get('dms', 0)})[/]")
         elif kind == "tick_end":
-            self._print(f"  [{c}]■ {escape(agent)}[/] [dim]({p.get('seconds')}s, rund {p.get('rounds')}, narzędzi {p.get('tool_calls')})[/] {escape(_short(p.get('summary', ''), 300))}")
+            u = p.get("usage") or {}
+            tok = ""
+            if u:
+                tok = f", tokeny we/wy {u.get('in', 0)}/{u.get('out', 0)}" + (f", z cache {u['cache_read']}" if u.get("cache_read") else "")
+            self._print(f"  [{c}]■ {escape(agent)}[/] [dim]({p.get('seconds')}s, rund {p.get('rounds')}, narzędzi {p.get('tool_calls')}{tok})[/] {escape(_short(p.get('summary', ''), 300))}")
         elif kind == "waiting":
             self._print(f"  [dim]⏳ {escape(agent)} czeka na model ({p.get('seconds')} s, runda {p.get('round')})[/]")
         elif kind == "memory":

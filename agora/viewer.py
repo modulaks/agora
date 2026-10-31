@@ -229,7 +229,7 @@ def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1].isdigit():
         port = int(sys.argv[1])
     print(f"Podgląd Agory: http://localhost:{port}  (baza: {settings.db_path})")
-    serve(settings.db_path, settings.data_dir, port, model=settings.ollama_model)
+    serve(settings.db_path, settings.data_dir, port, model=settings.model_label)
     return 0
 
 

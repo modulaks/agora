@@ -23,7 +23,8 @@ def load_dotenv(path: Path) -> None:
         key, _, value = line.partition("=")
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        os.environ.setdefault(key, value)
+        if value:  # puste "KLUCZ=" traktujemy jak brak ustawienia
+            os.environ.setdefault(key, value)
 
 
 def _env(name: str, default: str) -> str:
@@ -65,6 +66,9 @@ class ChannelSpec:
 @dataclass(slots=True)
 class Settings:
     # model
+    backend: str  # "ollama" | "anthropic"
+    anthropic_model: str
+    anthropic_effort: str
     ollama_host: str
     ollama_model: str
     num_ctx: int
@@ -100,6 +104,12 @@ class Settings:
     def db_path(self) -> Path:
         return self.data_dir / "agora.sqlite3"
 
+    @property
+    def model_label(self) -> str:
+        if self.backend == "anthropic":
+            return f"{self.anthropic_model} (Claude API, effort {self.anthropic_effort})"
+        return f"{self.ollama_model} @ {self.ollama_host}"
+
 
 def load_settings(config_path: Path | None = None, *, dry_run: bool = False, max_ticks: int | None = None) -> Settings:
     load_dotenv(PROJECT_ROOT / ".env")
@@ -128,7 +138,17 @@ def load_settings(config_path: Path | None = None, *, dry_run: bool = False, max
     if not data_dir.is_absolute():
         data_dir = (PROJECT_ROOT / data_dir).resolve()
 
+    backend = _env("AGORA_BACKEND", "ollama").strip().lower()
+    if backend not in {"ollama", "anthropic"}:
+        raise ValueError(f".env: AGORA_BACKEND={backend!r}; dozwolone: ollama, anthropic")
+    effort = _env("ANTHROPIC_EFFORT", "medium").strip().lower()
+    if effort not in {"low", "medium", "high", "xhigh", "max"}:
+        raise ValueError(f".env: ANTHROPIC_EFFORT={effort!r}; dozwolone: low, medium, high, xhigh, max")
+
     return Settings(
+        backend=backend,
+        anthropic_model=_env("ANTHROPIC_MODEL", "claude-sonnet-5-5").strip(),
+        anthropic_effort=effort,
         ollama_host=_env("OLLAMA_HOST", "http://localhost:11434"),
         ollama_model=_env("OLLAMA_MODEL", "qwen3:8b"),
         num_ctx=_env_int("OLLAMA_NUM_CTX", 16384),

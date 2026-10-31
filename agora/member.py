@@ -230,6 +230,6 @@ class Member:
         self.emit("tick_end", {
             "tick": tick, "summary": summary, "seconds": result.seconds, "rounds": result.rounds,
             "tool_calls": result.tool_calls, "posts": self.scratch.posts, "graph_ops": list(self.scratch.graph_ops), "web_calls": self.scratch.web_calls,
-            "transcript": result.transcript,
+            "transcript": result.transcript, "usage": result.usage,
         })
         await self._maybe_compact_memory()

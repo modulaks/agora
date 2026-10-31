@@ -27,16 +27,24 @@ class Community:
             log_path=settings.data_dir / "agora-log.txt",
         )
         self.graph = ArgumentGraph(self.db, on_change=self._on_graph_change)
-        self.chat: ChatBackend = chat or OllamaChat(
-            settings.ollama_host, settings.ollama_model,
-            num_ctx=settings.num_ctx, think=settings.think, concurrency=settings.concurrency, timeout=settings.llm_timeout,
-        )
+        self.chat: ChatBackend = chat or self._make_chat(settings)
         cache_dir = settings.data_dir / "cache"
         self.members = [
             Member(role, settings=settings, db=self.db, graph=self.graph, chat=self.chat, observer=self.observer, members=names, cache_dir=cache_dir)
             for role in settings.roles
         ]
         self._tasks: list[asyncio.Task[Any]] = []
+
+    @staticmethod
+    def _make_chat(settings: Settings) -> ChatBackend:
+        if settings.backend == "anthropic":
+            from .claude_chat import AnthropicChat
+
+            return AnthropicChat(settings.anthropic_model, effort=settings.anthropic_effort, timeout=settings.llm_timeout)
+        return OllamaChat(
+            settings.ollama_host, settings.ollama_model,
+            num_ctx=settings.num_ctx, think=settings.think, concurrency=settings.concurrency, timeout=settings.llm_timeout,
+        )
 
     # ── hook grafu: dziennik #graf + konsola ─────────────────────────────
 
@@ -110,6 +118,12 @@ class Community:
     async def check_model(self) -> None:
         if self.settings.dry_run:
             return
+        if self.settings.backend == "anthropic":
+            self.observer.event("system", "system", {"text": f"Sprawdzam klucz i model Claude ({self.settings.anthropic_model}) ..."})
+            check = getattr(self.chat, "check", None)
+            if check is not None:
+                await check()
+            return
         import ollama
 
         host = self.settings.ollama_host
@@ -133,7 +147,7 @@ class Community:
         self.bootstrap()
         await self.check_model()
         self.observer.banner(
-            f"AGORA · {len(self.members)} członków · model {s.ollama_model} @ {s.ollama_host} · tura co ~{s.tick_seconds:.0f}s · dane: {s.data_dir}"
+            f"AGORA · {len(self.members)} członków · model {s.model_label} · tura co ~{s.tick_seconds:.0f}s · dane: {s.data_dir}"
             + (" · DRY RUN" if s.dry_run else "")
         )
         self.observer.event("system", "system", {"text": "Start. Ctrl+C zatrzymuje; ponowne uruchomienie wznawia z bazy."})

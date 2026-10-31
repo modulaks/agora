@@ -86,6 +86,8 @@ Kanał `#graf` to dziennik systemowy wszystkich zmian w grafie, czytelny dla age
 
 | zmienna | znaczenie |
 |---|---|
+| `AGORA_BACKEND` | `ollama` (domyślnie) albo `anthropic` (Claude przez API, płatne) |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT` | klucz, model (`claude-sonnet-5-5` / `claude-haiku-5-5`), głębia myślenia (`low`/`medium`/`high`) |
 | `OLLAMA_HOST`, `OLLAMA_MODEL` | natywne API Ollamy i tag modelu |
 | `OLLAMA_NUM_CTX` | okno kontekstu (16384 zalecane) |
 | `OLLAMA_CONCURRENCY` | ile wywołań naraz (Ollama i tak kolejkuje) |

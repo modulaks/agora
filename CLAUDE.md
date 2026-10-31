@@ -24,6 +24,7 @@ Dane żyją w `community/` (SQLite, CODEX.md, cache stron, export). Usunięcie k
 | `db.py` | SQLite (WAL): channels, messages, dms, nodes, edges, counters, events, agent_state, sources |
 | `tools.py` | `@tool` buduje `ToolSpec` z sygnatury (pydantic); `Toolbox.call` zwraca błędy jako tekst `BŁĄD: ...` do modelu |
 | `llm.py` | `OllamaChat.run`: pętla tool-calling na `ollama.AsyncClient.chat(think=True, tools=...)`, semafor równoległości, zdarzenia thinking/tool_call/tool_result |
+| `claude_chat.py` | `AnthropicChat`: ta sama pętla na Claude API (`AGORA_BACKEND=anthropic`), adaptive thinking + effort, cache system/narzędzi, fallback przy odmowie; temperatura ról ignorowana |
 | `graph.py` | `ArgumentGraph`: operacje na węzłach Q/C/E/I/O/R/D/A, dedupe (`similarity` ≥ 0.72), `recompute()` liczy statusy i pewność, `digest()` do promptu, `codex()` do Markdown |
 | `kb_tools.py` | narzędzia grafu dla agenta (autor wstrzyknięty); `kb_rule` i `kb_mark_question` tylko dla roli `sedzia` |
 | `web_tools.py` | `web_search` (ddgs), `web_fetch` (httpx + trafilatura, cache), `wiki_lookup` |

@@ -43,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.viewer:
         from .viewer import serve
 
-        threading.Thread(target=serve, args=(settings.db_path, settings.data_dir, settings.viewer_port, settings.ollama_model), daemon=True).start()
+        threading.Thread(target=serve, args=(settings.db_path, settings.data_dir, settings.viewer_port, settings.model_label), daemon=True).start()
         print(f"Podgląd: http://localhost:{settings.viewer_port}")
 
     async def runner() -> None:

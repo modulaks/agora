@@ -26,6 +26,8 @@ class ChatResult:
     seconds: float = 0.0
     error: str | None = None
     transcript: list[dict[str, Any]] = field(default_factory=list)
+    # Tokeny w turze: in / out / cache_read / cache_write (co poda backend).
+    usage: dict[str, int] = field(default_factory=dict)
 
 
 class ChatBackend(Protocol):
@@ -48,6 +50,27 @@ async def _emit(sink: EventSink, kind: str, payload: dict[str, Any]) -> None:
     out = sink(kind, payload)
     if asyncio.iscoroutine(out):
         await out
+
+
+async def with_heartbeat(coro: Awaitable[Any], on_event: EventSink, round_no: int) -> Any:
+    """Wywołanie modelu bez streamingu trwa minutami; co HEARTBEAT_SECONDS raportujemy, że agent czeka."""
+    start = time.monotonic()
+    task = asyncio.ensure_future(coro)
+    try:
+        while True:
+            done, _ = await asyncio.wait({task}, timeout=HEARTBEAT_SECONDS)
+            if done:
+                return task.result()
+            await _emit(on_event, "waiting", {"seconds": round(time.monotonic() - start), "round": round_no})
+    finally:
+        if not task.done():
+            task.cancel()
+
+
+def add_usage(total: dict[str, int], **counts: int | None) -> None:
+    for key, value in counts.items():
+        if value:
+            total[key] = total.get(key, 0) + int(value)
 
 
 class OllamaChat:
@@ -99,18 +122,7 @@ class OllamaChat:
             raise last_exc
 
     async def _chat_with_heartbeat(self, messages: list[Any], *, tools: list[dict[str, Any]] | None, temperature: float, on_event: EventSink, round_no: int):
-        """Wywołanie modelu bez streamingu trwa minutami; co HEARTBEAT_SECONDS raportujemy, że agent czeka."""
-        start = time.monotonic()
-        task = asyncio.ensure_future(self._chat(messages, tools=tools, temperature=temperature))
-        try:
-            while True:
-                done, _ = await asyncio.wait({task}, timeout=HEARTBEAT_SECONDS)
-                if done:
-                    return task.result()
-                await _emit(on_event, "waiting", {"seconds": round(time.monotonic() - start), "round": round_no})
-        finally:
-            if not task.done():
-                task.cancel()
+        return await with_heartbeat(self._chat(messages, tools=tools, temperature=temperature), on_event, round_no)
 
     async def run(
         self,
@@ -139,6 +151,7 @@ class OllamaChat:
                 break
             msg = response.message
             result.rounds = round_no
+            add_usage(result.usage, **{"in": getattr(response, "prompt_eval_count", None), "out": getattr(response, "eval_count", None)})
             thinking = (getattr(msg, "thinking", None) or "").strip()
             content = (msg.content or "").strip()
             calls = list(msg.tool_calls or [])
