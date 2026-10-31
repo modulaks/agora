@@ -14,9 +14,16 @@ if (-not (Test-Path $py)) {
     if (-not (Test-Path $py)) { Write-Host "Nie udalo sie utworzyc .venv. Czy Python jest zainstalowany (python --version)?" -ForegroundColor Red; exit 1 }
 }
 
-Write-Host "Instaluje zaleznosci ..." -ForegroundColor Cyan
-& $py -m pip install --disable-pip-version-check -q -r requirements.txt
-if ($LASTEXITCODE -ne 0) { Write-Host "Instalacja zaleznosci nie powiodla sie (komunikat wyzej)." -ForegroundColor Red; exit 1 }
+# Biblioteki instalujemy raz; ponownie tylko, gdy zmieni sie requirements.txt.
+$stamp = Join-Path $PSScriptRoot ".venv\requirements.sha256"
+$hash = (Get-FileHash "requirements.txt" -Algorithm SHA256).Hash
+$installed = if (Test-Path $stamp) { (Get-Content $stamp -Raw).Trim() } else { "" }
+if ($hash -ne $installed) {
+    Write-Host "Instaluje zaleznosci (jednorazowo) ..." -ForegroundColor Cyan
+    & $py -m pip install --disable-pip-version-check -q -r requirements.txt
+    if ($LASTEXITCODE -ne 0) { Write-Host "Instalacja zaleznosci nie powiodla sie (komunikat wyzej)." -ForegroundColor Red; exit 1 }
+    Set-Content -Path $stamp -Value $hash -Encoding ASCII
+}
 
 if (-not (Test-Path ".env")) { Copy-Item ".env.example" ".env" }
 
