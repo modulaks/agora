@@ -42,46 +42,52 @@ def test_dotenv_copied_from_other_project(tmp_path, monkeypatch):
 
 
 def test_dotenv_wins_over_old_windows_variable(tmp_path, monkeypatch):
-    monkeypatch.setenv("C_KEY", "sk-stary-z-setx")
+    monkeypatch.setenv("C_API_KEY", "sk-stary-z-setx")
+    monkeypatch.setenv("C_DATA_DIR", "z-testu")
     env = tmp_path / ".env"
-    env.write_text("C_KEY=sk-nowy-z-env\n", encoding="ascii")
+    env.write_text("C_API_KEY=sk-nowy-z-env\nC_DATA_DIR=z-env\n", encoding="ascii")
     load_dotenv(env)
-    assert os.environ["C_KEY"] == "sk-nowy-z-env"
+    assert os.environ["C_API_KEY"] == "sk-nowy-z-env"  # klucz z .env wygrywa
+    assert os.environ["C_DATA_DIR"] == "z-testu"  # reszta: środowisko wygrywa
 
 
-class StubOpenAI:
+def _resp(rid, output, status="completed"):
+    usage = NS(input_tokens=50, output_tokens=10, input_tokens_details=NS(cached_tokens=40))
+    return NS(id=rid, status=status, output=output, usage=usage, error=None, incomplete_details=None)
+
+
+class StubResponses:
+    """Podstawiony klient Responses API: runda 1 woła dwa narzędzia, runda 2 kończy tekstem."""
+
     def __init__(self):
         self.calls = []
-        self.chat = NS(completions=NS(create=self.create))
+        self.responses = NS(create=self.create)
 
     async def create(self, **kwargs):
         self.calls.append(kwargs)
-        usage = NS(prompt_tokens=50, completion_tokens=10, prompt_tokens_details=NS(cached_tokens=40))
         if len(self.calls) == 1:
-            calls = [
-                NS(id="c1", function=NS(name="add", arguments='{"a": 2, "b": 3}')),
-                NS(id="c2", function=NS(name="add", arguments="{zły json")),
-            ]
-            msg = NS(content=None, tool_calls=calls, refusal=None)
-            return NS(choices=[NS(message=msg, finish_reason="tool_calls")], usage=usage)
-        tool_msgs = [m for m in kwargs["messages"] if m.get("role") == "tool"]
-        assert [m["tool_call_id"] for m in tool_msgs] == ["c1", "c2"]
-        assert tool_msgs[0]["content"] == "5" and tool_msgs[1]["content"].startswith("BŁĄD")
-        assistant = [m for m in kwargs["messages"] if m.get("role") == "assistant"][0]
-        assert assistant["tool_calls"][0]["function"]["name"] == "add"
-        msg = NS(content="Wynik to 5.", tool_calls=None, refusal=None)
-        return NS(choices=[NS(message=msg, finish_reason="stop")], usage=usage)
+            assert kwargs["input"] == [{"role": "user", "content": "u"}] and "previous_response_id" not in kwargs
+            return _resp("r1", [
+                NS(type="reasoning", summary=[NS(type="summary_text", text="dodam liczby")]),
+                NS(type="function_call", call_id="c1", name="add", arguments='{"a": 2, "b": 3}'),
+                NS(type="function_call", call_id="c2", name="add", arguments="{zły json"),
+            ])
+        assert kwargs["previous_response_id"] == "r1" and kwargs["instructions"] == "s"
+        outs = kwargs["input"]
+        assert [o["call_id"] for o in outs] == ["c1", "c2"] and all(o["type"] == "function_call_output" for o in outs)
+        assert outs[0]["output"] == "5" and outs[1]["output"].startswith("BŁĄD")
+        return _resp("r2", [NS(type="message", content=[NS(type="output_text", text="Wynik to 5.")])])
 
 
 @pytest.mark.asyncio
-async def test_openai_tool_loop():
+async def test_openai_responses_tool_loop():
     @tool
     def add(a: Annotated[int, Field(description="a")], b: Annotated[int, Field(description="b")] = 0) -> str:
         """Dodaje."""
         return str(a + b)
 
-    stub = StubOpenAI()
-    chat = OpenAIChat("gpt-5", client=stub)
+    stub = StubResponses()
+    chat = OpenAIChat("gpt-6-luna", client=stub)
     events = []
 
     async def on_event(kind, payload):
@@ -91,10 +97,51 @@ async def test_openai_tool_loop():
     assert result.text == "Wynik to 5." and result.error is None
     assert result.tool_calls == 2 and result.rounds == 2
     assert result.usage == {"in": 100, "out": 20, "cache_read": 80}
-    assert "temperature" not in stub.calls[0] and stub.calls[0]["tool_choice"] == "auto"
-    assert stub.calls[0]["reasoning_effort"] == "none"
-    assert stub.calls[0]["tools"][0]["type"] == "function"
-    assert events.count("tool_call") == 2
+    first = stub.calls[0]
+    assert "temperature" not in first and first["tool_choice"] == "auto" and first["store"] is True
+    assert first["reasoning"] == {"effort": "medium", "summary": "auto"}  # rozumowanie razem z narzędziami
+    assert first["tools"][0] == {"type": "function", "name": "add", "description": "Dodaje.", "parameters": first["tools"][0]["parameters"], "strict": False}
+    assert events[0] == "thinking" and events.count("tool_call") == 2
+
+
+@pytest.mark.asyncio
+async def test_reasoning_summary_dropped_when_account_cannot_use_it():
+    import httpx2
+    import openai
+
+    calls = []
+
+    async def create(**kwargs):
+        calls.append(kwargs)
+        if "summary" in (kwargs.get("reasoning") or {}):
+            raise openai.BadRequestError("Your organization must be verified to generate reasoning summaries.", response=httpx2.Response(400, request=httpx2.Request("POST", "https://x")), body=None)
+        return _resp("r1", [NS(type="message", content=[NS(type="output_text", text="ok")])])
+
+    chat = OpenAIChat("gpt-6-luna", client=NS(responses=NS(create=create)))
+
+    async def on_event(kind, payload):
+        pass
+
+    for _ in range(2):
+        result = await chat.run(system="s", user="u", toolbox=Toolbox([]), temperature=0.5, on_event=on_event, max_rounds=1)
+        assert result.text == "ok" and result.error is None
+    assert [c["reasoning"] for c in calls] == [{"effort": "medium", "summary": "auto"}, {"effort": "medium"}, {"effort": "medium"}]
+
+
+@pytest.mark.asyncio
+async def test_incomplete_response_is_reported():
+    async def create(**kwargs):
+        r = _resp("r1", [], status="incomplete")
+        r.incomplete_details = NS(reason="max_output_tokens")
+        return r
+
+    chat = OpenAIChat("gpt-6-luna", client=NS(responses=NS(create=create)))
+
+    async def on_event(kind, payload):
+        pass
+
+    result = await chat.run(system="s", user="u", toolbox=Toolbox([]), temperature=0.5, on_event=on_event, max_rounds=1)
+    assert result.error == "odpowiedź niepełna (max_output_tokens)"
 
 
 def test_key_copied_from_chat_is_reported(monkeypatch):
@@ -143,28 +190,3 @@ async def test_no_luna_on_account(monkeypatch):
     chat = OpenAIChat("gpt-6-luna", client=NS(models=_Models(["gpt-4o"])))
     with pytest.raises(SystemExit, match="Luny"):
         await chat.check()
-
-
-@pytest.mark.asyncio
-async def test_model_without_reasoning_effort_gets_request_without_it():
-    import httpx2
-    import openai
-
-    calls = []
-
-    async def create(**kwargs):
-        calls.append(kwargs)
-        if "reasoning_effort" in kwargs:
-            raise openai.BadRequestError("Unsupported parameter: 'reasoning_effort'", response=httpx2.Response(400, request=httpx2.Request("POST", "https://x")), body=None)
-        msg = NS(content="ok", tool_calls=None, refusal=None)
-        return NS(choices=[NS(message=msg, finish_reason="stop")], usage=None)
-
-    chat = OpenAIChat("gpt-4o", client=NS(chat=NS(completions=NS(create=create))))
-
-    async def on_event(kind, payload):
-        pass
-
-    for _ in range(2):
-        result = await chat.run(system="s", user="u", toolbox=Toolbox([]), temperature=0.5, on_event=on_event, max_rounds=1)
-        assert result.text == "ok" and result.error is None
-    assert [("reasoning_effort" in c) for c in calls] == [True, False, False]

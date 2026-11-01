@@ -85,11 +85,13 @@ def build_spec(fn: Callable[..., Any], *, name: str | None = None, description: 
         annotation = hints.get(pname, str)
         base, info = _unwrap_annotation(annotation)
         has_default = param.default is not inspect._empty
-        description = info.description if info is not None else None
+        # Osobna nazwa: wcześniej ta zmienna nadpisywała parametr `description` funkcji,
+        # przez co opisem narzędzia stawał się opis jego ostatniego pola zamiast docstringu.
+        field_desc = info.description if info is not None else None
         if has_default:
-            info = Field(default=param.default, description=description)
+            info = Field(default=param.default, description=field_desc)
         else:
-            info = Field(description=description)
+            info = Field(description=field_desc)
         fields[pname] = (base, info)
     model = create_model(f"{fn.__name__}_args", **fields)  # type: ignore[call-overload]
     doc = (description or inspect.getdoc(fn) or fn.__name__).strip()

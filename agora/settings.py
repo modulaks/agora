@@ -12,8 +12,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_dotenv(path: Path) -> None:
-    """Minimalny loader .env. Plik .env wygrywa ze zmiennymi środowiskowymi Windowsa:
-    stary OPENAI_API_KEY ustawiony kiedyś przez setx nie może zasłonić klucza z .env."""
+    """Minimalny loader .env. Klucze API (*_API_KEY) z .env wygrywają ze zmiennymi środowiskowymi:
+    stary OPENAI_API_KEY ustawiony kiedyś przez setx nie może zasłonić klucza z .env.
+    Pozostałe zmienne środowiskowe mają pierwszeństwo przed .env (np. AGORA_DATA_DIR w testach)."""
     if not path.exists():
         return
     # utf-8-sig: PowerShell 5.1 zapisuje UTF-8 z BOM.
@@ -26,7 +27,10 @@ def load_dotenv(path: Path) -> None:
         key = key.strip()
         value = value.strip().strip('"').strip("'")
         if value:  # puste "KLUCZ=" traktujemy jak brak ustawienia
-            os.environ[key] = value
+            if key.endswith("_API_KEY"):
+                os.environ[key] = value
+            else:
+                os.environ.setdefault(key, value)
 
 
 def _env(name: str, default: str) -> str:

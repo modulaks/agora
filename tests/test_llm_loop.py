@@ -136,3 +136,14 @@ def test_anthropic_tool_schema_and_haiku_without_fallback():
     schema = to_anthropic_tools([{"type": "function", "function": {"name": "x", "description": "d", "parameters": {"type": "object"}}}])
     assert schema == [{"name": "x", "description": "d", "input_schema": {"type": "object"}}]
     assert AnthropicChat("claude-haiku-5-5", client=object())._extra() == {}
+
+
+def test_tool_description_is_docstring_not_last_field():
+    @tool
+    def add(a: Annotated[int, Field(description="pierwsza")], b: Annotated[int, Field(description="druga")] = 0) -> str:
+        """Dodaje dwie liczby."""
+        return str(a + b)
+
+    fn = Toolbox([add]).schemas()[0]["function"]
+    assert fn["description"] == "Dodaje dwie liczby."
+    assert fn["parameters"]["properties"]["b"]["description"] == "druga"
